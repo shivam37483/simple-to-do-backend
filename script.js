@@ -4,6 +4,8 @@ const { userModel, todoModel } = require("./db")
 const jwt = require("jsonwebtoken")
 const mongo = require("mongoose")
 
+const { z } = require("zod")
+
 mongo.connect("mongodb+srv://admin:yINLnskaAukH3uPS@cluster2099.geca1tb.mongodb.net/todos-app")
 
 const JWT_SECRET = "Helpppppppjrlooooo"
@@ -13,14 +15,29 @@ const app = express()
 app.use(express.json())
 
 app.post('/signup', async (req, res) => {
-    const name = req.body.name
+    const requiredBody = z.object({
+        username: z.string().min(3).max(100),
+        email: z.string().email().min(3).max(100),
+        password: z.string().min(3).max(30)
+    })
+
+    const parsedDataResult = requiredBody.safeParse(req.body)
+
+    if (!parsedDataResult.success) {
+        return res.json({
+            message: "Incorrect Format",
+            error: parsedDataResult.error
+        })
+    }
+
+    const username = req.body.username
     const email = req.body.email
     const password = req.body.password
 
     const hashedPassword = await bcrypt.hash(password, 11)
 
     await userModel.create({
-        name: name,
+        name: username,
         email: email,
         password: hashedPassword
     })
