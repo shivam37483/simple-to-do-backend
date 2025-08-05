@@ -1,3 +1,4 @@
+const bcrypt = require("bcrypt")
 const express = require("express")
 const { userModel, todoModel } = require("./db")
 const jwt = require("jsonwebtoken")
@@ -16,10 +17,12 @@ app.post('/signup', async (req, res) => {
     const email = req.body.email
     const password = req.body.password
 
+    const hashedPassword = await bcrypt.hash(password, 11)
+
     await userModel.create({
         name: name,
         email: email,
-        password: password
+        password: hashedPassword
     })
 
     res.json({
@@ -32,21 +35,28 @@ app.post('/login', async (req, res) => {
     const password = req.body.password
 
     const response = await userModel.findOne({
-        email: email,
-        password: password
+        email: email
     })
-    
-    if (response) {
+
+    if (!response) {
+        return res.status(403).json({
+            msg: "User does not exist"
+        })
+    }
+
+    const matchedPassword = await bcrypt.compare(password, response.password)
+
+    if (matchedPassword) {
         const token = jwt.sign({
             userid: response._id.toString()
-            },
+        },
             JWT_SECRET
-        ) 
+        )
 
         res.json({
             token: token
         })
-        
+
     } else {
         res.status(403).json({
             message: "Incorrect creds"
@@ -91,7 +101,7 @@ app.get('/todos', auth, async (req, res) => {
     const todos = await todoModel.find({
         userID: userid
     })
-    
+
     res.send(todos)
 })
 
